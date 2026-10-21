@@ -109,14 +109,12 @@
   <script>
     let currentUser = "";
 
-    // Lista de cores vibrantes estilo WhatsApp para cada usuário
     const userColors = [
       '#e52e71', '#ff8a00', '#00e676', '#1e88e5', 
       '#ab47bc', '#00e5ff', '#ffeb3b', '#ff5252', 
       '#69f0ae', '#ff4081', '#7c4dff', '#00b0ff'
     ];
 
-    // Gerador de cor fixa por apelido
     function getUserColor(username) {
       let hash = 0;
       for (let i = 0; i < username.length; i++) {
@@ -139,7 +137,7 @@
       if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
       window.db = firebase.firestore();
     } catch (e) {
-      console.warn("Modo de contingência ativado.");
+      console.warn("Firebase desativado. Usando armazenamento local.");
     }
 
     function handleJoin(e) {
@@ -148,10 +146,7 @@
       const pin = document.getElementById("pinInput").value.trim();
 
       if (!username) return alert("Por favor, digite o seu apelido.");
-
-      if (pin !== "jtvrevendas") {
-        return alert("Senha incorreta! Acesso negado.");
-      }
+      if (pin !== "jtvrevendas") return alert("Senha incorreta! Acesso negado.");
 
       currentUser = username;
       document.getElementById("loginScreen").classList.add("hidden");
@@ -162,20 +157,36 @@
     }
 
     function loadMessages() {
-      if (!window.db) return;
-      window.db.collection("messages").orderBy("timestamp", "asc")
-        .onSnapshot(snapshot => {
-          const container = document.getElementById("messagesList");
-          if (!container) return;
-          container.innerHTML = "";
-          snapshot.forEach(doc => {
-            const msg = doc.data();
-            renderMessage(msg);
+      const container = document.getElementById("messagesList");
+      if (!container) return;
+
+      if (window.db) {
+        window.db.collection("messages").orderBy("timestamp", "asc")
+          .onSnapshot(snapshot => {
+            container.innerHTML = "";
+            const cloudMessages = [];
+            snapshot.forEach(doc => {
+              cloudMessages.push(doc.data());
+            });
+            // Salva também no cache local do navegador
+            localStorage.setItem("jtv_chat_history", JSON.stringify(cloudMessages));
+            
+            cloudMessages.forEach(msg => renderMessage(msg));
+            container.scrollTop = container.scrollHeight;
+          }, err => {
+            loadLocalMessages();
           });
-          container.scrollTop = container.scrollHeight;
-        }, err => {
-          console.log("Aguardando sincronização de mensagens...");
-        });
+      } else {
+        loadLocalMessages();
+      }
+    }
+
+    function loadLocalMessages() {
+      const container = document.getElementById("messagesList");
+      container.innerHTML = "";
+      const saved = JSON.parse(localStorage.getItem("jtv_chat_history") || "[]");
+      saved.forEach(msg => renderMessage(msg));
+      container.scrollTop = container.scrollHeight;
     }
 
     function renderMessage(msg) {
@@ -203,7 +214,6 @@
         </div>
       `;
       container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
     }
 
     function sendMessage(e) {
@@ -215,14 +225,22 @@
       const msgData = {
         sender: currentUser,
         text: text,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        timestamp: new Date().getTime(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
       if (window.db) {
-        window.db.collection("messages").add(msgData);
+        window.db.collection("messages").add({
+          sender: currentUser,
+          text: text,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          time: msgData.time
+        });
       } else {
-        renderMessage(msgData);
+        const saved = JSON.parse(localStorage.getItem("jtv_chat_history") || "[]");
+        saved.push(msgData);
+        localStorage.setItem("jtv_chat_history", JSON.stringify(saved));
+        loadLocalMessages();
       }
       input.value = "";
     }
@@ -235,13 +253,21 @@
         const msgData = {
           sender: currentUser,
           imageUrl: evt.target.result,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          timestamp: new Date().getTime(),
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         if (window.db) {
-          window.db.collection("messages").add(msgData);
+          window.db.collection("messages").add({
+            sender: currentUser,
+            imageUrl: evt.target.result,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            time: msgData.time
+          });
         } else {
-          renderMessage(msgData);
+          const saved = JSON.parse(localStorage.getItem("jtv_chat_history") || "[]");
+          saved.push(msgData);
+          localStorage.setItem("jtv_chat_history", JSON.stringify(saved));
+          loadLocalMessages();
         }
       };
       reader.readAsDataURL(file);
