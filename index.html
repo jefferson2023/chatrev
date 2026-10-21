@@ -1,504 +1,242 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR" class="h-full bg-[#0b141a]">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Privado em Tempo Real</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            50: '#18181b',
-                            100: '#27272a',
-                            200: '#3f3f46',
-                            300: '#52525b',
-                            400: '#71717a',
-                            500: '#a1a1aa'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0b141a; }
-        ::-webkit-scrollbar-thumb { background: #374045; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #4a555c; }
-
-        .chat-bg {
-            background-color: #0b141a;
-            background-image: radial-gradient(#1f2c34 1px, transparent 1px);
-            background-size: 16px 16px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bate-Papo de Suporte</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <style>
+    .chat-bg {
+      background-color: #0b141a;
+      background-image: radial-gradient(#111b21 1px, transparent 0);
+      background-size: 16px 16px;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #374248; border-radius: 3px; }
+  </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
+<body class="h-full flex flex-col font-sans text-gray-100 antialiased selection:bg-[#00a884] selection:text-white">
 
-    <div id="app" class="w-full max-w-4xl mx-auto h-screen flex flex-col p-0 sm:p-3">
-        
-        <!-- Header (WhatsApp Style Bar) -->
-        <header class="bg-[#202c33] border-b border-[#2a3942] p-3 flex justify-between items-center shadow-md sm:rounded-t-2xl">
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <div class="w-10 h-10 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-lg shadow">
-                        <i class="fa-solid fa-headset text-lg"></i>
-                    </div>
-                    <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#202c33] rounded-full"></span>
-                </div>
-                <div>
-                    <h1 class="font-semibold text-base leading-tight text-zinc-100 flex items-center gap-1.5" id="roomTitleDisplay">
-                        Sala de Suporte
-                    </h1>
-                    <p class="text-[11px] text-[#8696a0] font-medium flex items-center gap-1">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span> online agora
-                    </p>
-                </div>
-            </div>
+  <!-- TELA DE LOGIN -->
+  <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-[#0b141a] p-4 chat-bg">
+    <div class="w-full max-w-md bg-[#111b21] border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#128c7e]/20 text-[#00a884] mb-3">
+          <i class="fa-brands fa-whatsapp text-3xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-100">Bate-Papo de Suporte</h1>
+        <p class="text-xs text-gray-400 mt-1">Digite seu apelido e a senha correta para conectar ao bate-papo.</p>
+      </div>
 
-            <!-- Header Action Controls -->
-            <div class="flex items-center gap-2" id="headerActions">
-                <button id="btnLeaveRoom" onclick="leaveRoom()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span class="hidden sm:inline">Sair</span>
-                </button>
-            </div>
-        </header>
-
-        <div id="joinScreen" class="flex-1 flex items-center justify-center p-4 bg-[#0b141a]">
-            <div class="bg-[#111b21] border border-[#222d34] p-6 sm:p-8 rounded-2xl w-full max-w-md shadow-2xl space-y-6">
-                <div class="text-center space-y-2">
-                    <div class="w-16 h-16 bg-[#00a884]/10 border border-[#00a884]/30 text-[#00a884] rounded-full flex items-center justify-center mx-auto text-3xl">
-                        <i class="fa-brands fa-whatsapp"></i>
-                    </div>
-                    <h2 class="text-xl font-bold text-zinc-100">Bate-Papo de Suporte</h2>
-                    <p class="text-xs text-[#8696a0]">Digite seu apelido e a senha correta para conectar ao bate-papo.</p>
-                </div>
-
-                <form id="joinForm" onsubmit="handleJoinOrCreate(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-[#00a884] mb-1.5 uppercase tracking-wider">Apelido</label>
-                        <div class="relative">
-                            <span class="absolute left-3.5 top-3 text-[#00a884] text-sm"><i class="fa-solid fa-user"></i></span>
-                            <input type="text" id="inputUsername" required placeholder="Digite seu apelido (Ex: Alex)" class="w-full bg-[#1f2c34] border border-[#2a3942] rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#00a884] transition text-zinc-100 placeholder-[#8696a0] font-medium">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-[#00a884] mb-1.5 uppercase tracking-wider">Senha / PIN da Sala</label>
-                        <div class="relative">
-                            <span class="absolute left-3.5 top-3 text-[#00a884] text-sm"><i class="fa-solid fa-lock"></i></span>
-                            <input type="password" id="inputPin" required placeholder="Digite a senha de acesso" class="w-full bg-[#1f2c34] border border-[#2a3942] rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-[#00a884] transition text-zinc-100 placeholder-[#8696a0]">
-                        </div>
-                        <p class="text-[10px] text-[#8696a0] mt-1">Acesso restrito por senha.</p>
-                    </div>
-
-                    <button type="submit" id="btnJoin" class="w-full bg-[#00a884] hover:bg-[#008f6f] text-white font-medium py-3 rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#00a884]/20">
-                        <span>Entrar no Bate-Papo</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
-                    </button>
-                </form>
-            </div>
+      <form id="loginForm" onsubmit="handleJoin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">APELIDO</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+              <i class="fa-solid fa-user text-sm"></i>
+            </span>
+            <input type="text" id="usernameInput" required placeholder="Digite seu apelido (Ex: Alex)"
+              class="w-full pl-10 pr-4 py-3 bg-[#202c33] border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#00a884] focus:ring-1 focus:ring-[#00a884] text-sm">
+          </div>
         </div>
 
-        <div id="chatScreen" class="hidden flex-1 flex flex-col min-h-0 chat-bg border-x border-[#2a3942] sm:rounded-b-2xl overflow-hidden shadow-2xl">
-            
-            <!-- Messages Container -->
-            <div id="messagesList" class="flex-1 overflow-y-auto p-3 sm:p-5 space-y-2">
-                <!-- Empty State -->
-                <div id="emptyChatNotice" class="h-full flex flex-col items-center justify-center text-center p-6 text-[#8696a0]">
-                    <div class="w-16 h-16 bg-[#182229] border border-[#222d34] rounded-full flex items-center justify-center text-2xl text-[#00a884] mb-3">
-                        <i class="fa-solid fa-lock"></i>
-                    </div>
-                    <p class="text-sm font-semibold text-zinc-200">As mensagens são privadas</p>
-                    <p class="text-xs text-[#8696a0] max-w-xs mt-1">Nenhuma mensagem ainda. Envie um texto ou foto para iniciar a conversa!</p>
-                </div>
-            </div>
-
-            <!-- Image Preview Bar -->
-            <div id="imagePreviewContainer" class="hidden px-4 py-2 bg-[#111b21] border-t border-[#222d34] flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <img id="imagePreview" src="" class="w-12 h-12 object-cover rounded-md border border-[#2a3942]">
-                    <div class="text-xs">
-                        <p class="font-medium text-zinc-200" id="imageFileName">imagem.jpg</p>
-                        <p class="text-[#8696a0]">Pronta para enviar</p>
-                    </div>
-                </div>
-                <button type="button" onclick="cancelImageSelection()" class="text-[#8696a0] hover:text-rose-400 p-2 rounded-lg transition">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-
-            <!-- Message Input Area -->
-            <div class="p-2 sm:p-3 bg-[#202c33] border-t border-[#2a3942]">
-                <form id="messageForm" onsubmit="handleSendMessage(event)" class="flex items-center gap-2">
-                    <label class="cursor-pointer hover:bg-[#2a3942] text-[#8696a0] hover:text-[#00a884] p-3 rounded-full transition flex items-center justify-center" title="Anexar Imagem">
-                        <i class="fa-solid fa-paperclip text-lg"></i>
-                        <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
-                    </label>
-
-                    <input type="text" id="textInput" placeholder="Mensagem" autocomplete="off" class="flex-1 bg-[#2a3942] border-none rounded-2xl px-4 py-2.5 text-sm text-zinc-100 placeholder-[#8696a0] focus:outline-none focus:ring-1 focus:ring-[#00a884] transition">
-
-                    <button type="submit" id="btnSend" class="bg-[#00a884] hover:bg-[#008f6f] text-white w-10 h-10 rounded-full transition flex items-center justify-center shadow-md disabled:opacity-50 flex-shrink-0">
-                        <i class="fa-solid fa-paper-plane text-sm"></i>
-                    </button>
-                </form>
-            </div>
+        <div>
+          <label class="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">SENHA / PIN DA SALA</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-400">
+              <i class="fa-solid fa-key text-sm"></i>
+            </span>
+            <input type="password" id="pinInput" required placeholder="Digite a senha de acesso"
+              class="w-full pl-10 pr-4 py-3 bg-[#202c33] border border-indigo-500/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 text-sm">
+          </div>
+          <p class="text-[11px] text-gray-500 mt-1">Acesso restrito por senha.</p>
         </div>
 
+        <button type="submit"
+          class="w-full py-3.5 px-4 bg-[#008069] hover:bg-[#00a884] text-white font-medium rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-lg mt-2">
+          <span>Entrar no Bate-Papo</span>
+          <i class="fa-solid fa-arrow-right text-sm"></i>
+        </button>
+      </form>
     </div>
+  </div>
 
-    <!-- Notification Toast Modal -->
-    <div id="toast" class="fixed bottom-6 right-6 bg-[#202c33] border border-[#2a3942] text-zinc-200 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-20 opacity-0 z-50">
-        <i id="toastIcon" class="fa-solid fa-info-circle text-[#00a884]"></i>
-        <span id="toastMessage" class="text-xs font-medium">Notificação</span>
-    </div>
+  <!-- TELA DO CHAT -->
+  <div id="chatScreen" class="hidden flex-col h-full max-w-5xl w-full mx-auto bg-[#111b21] shadow-2xl overflow-hidden">
+    <!-- Cabeçalho -->
+    <header class="bg-[#202c33] px-4 py-3 flex items-center justify-between border-b border-gray-800">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-[#128c7e] flex items-center justify-center text-white font-bold text-lg">
+          <i class="fa-solid fa-[#00a884] fa-headset text-xl"></i>
+        </div>
+        <div>
+          <h2 class="font-semibold text-gray-100 text-base leading-tight">Sala de Suporte</h2>
+          <p class="text-xs text-[#00a884] flex items-center gap-1 mt-0.5">
+            <span class="w-2 h-2 rounded-full bg-[#00a884]"></span>
+            <span>Online</span>
+          </p>
+        </div>
+      </div>
+      <button onclick="leaveChat()" class="text-gray-400 hover:text-red-400 p-2 rounded-lg transition" title="Sair">
+        <i class="fa-solid fa-right-from-bracket text-lg"></i>
+      </button>
+    </header>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            doc, 
-            setDoc, 
-            getDoc, 
-            addDoc, 
-            onSnapshot, 
-            serverTimestamp 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- Lista de Mensagens -->
+    <main id="messagesList" class="flex-1 overflow-y-auto p-4 space-y-3 chat-bg custom-scrollbar"></main>
 
-        let db, auth;
-        let currentUser = null;
-        let currentRoomId = null;
-        let username = "";
-        let selectedBase64Image = null;
-        let unsubscribeMessages = null;
+    <!-- Barra de Envio -->
+    <footer class="bg-[#202c33] p-3 border-t border-gray-800">
+      <form id="messageForm" onsubmit="sendMessage(event)" class="flex items-center gap-2">
+        <label class="cursor-pointer text-gray-400 hover:text-gray-200 p-2.5 rounded-full hover:bg-gray-700/50 transition">
+          <i class="fa-solid fa-paperclip text-lg"></i>
+          <input type="file" id="imageInput" accept="image/*" onchange="sendImage(event)" class="hidden">
+        </label>
+        <input type="text" id="messageInput" placeholder="Digite uma mensagem..." autocomplete="off"
+          class="flex-1 bg-[#2a3942] text-white placeholder-gray-400 px-4 py-2.5 rounded-full border-none focus:outline-none focus:ring-1 focus:ring-[#00a884] text-sm">
+        <button type="submit" class="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008069] text-white flex items-center justify-center transition shrink-0 shadow">
+          <i class="fa-solid fa-paper-plane text-sm"></i>
+        </button>
+      </form>
+    </footer>
+  </div>
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'privchat-app';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "AIzaSyDemoConfigForTestingOnly",
-                authDomain: "demo.firebaseapp.com",
-                projectId: "demo-project",
-                storageBucket: "demo.appspot.com",
-                messagingSenderId: "123456789",
-                appId: "1:123456789:web:demo"
-            };
+  <script>
+    let currentUser = "";
+    let currentRoom = "main_support";
 
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
+    // Inicialização do Firebase com fallback de segurança
+    try {
+      const firebaseConfig = {
+        apiKey: "AIzaSyDemoConfigKeyForStaticPages12345",
+        authDomain: "jtv-chat.firebaseapp.com",
+        projectId: "jtv-chat",
+        storageBucket: "jtv-chat.appspot.com",
+        messagingSenderId: "123456789",
+        appId: "1:123456789:web:123456789"
+      };
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      window.db = firebase.firestore();
+    } catch (e) {
+      console.warn("Modo offline ativado devido a erro de conexão Firebase.");
+    }
 
-        async function initAuth() {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const mod = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-                    await mod.signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (err) {
-                console.error("Erro na autenticação:", err);
-                showToast("Erro ao autenticar no serviço", "error");
-            }
-        }
+    function handleJoin(e) {
+      e.preventDefault();
+      const username = document.getElementById("usernameInput").value.trim();
+      const pin = document.getElementById("pinInput").value.trim();
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                checkURLParams();
-            }
+      if (!username) return alert("Por favor, digite o seu apelido.");
+
+      if (pin !== "jtvrevendas") {
+        return alert("Senha incorreta! Acesso negado.");
+      }
+
+      currentUser = username;
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("chatScreen").classList.remove("hidden");
+      document.getElementById("chatScreen").classList.add("flex");
+
+      loadMessages();
+    }
+
+    function loadMessages() {
+      if (!window.db) return;
+      window.db.collection("messages").orderBy("timestamp", "asc")
+        .onSnapshot(snapshot => {
+          const container = document.getElementById("messagesList");
+          if (!container) return;
+          container.innerHTML = "";
+          snapshot.forEach(doc => {
+            const msg = doc.data();
+            renderMessage(msg);
+          });
+          container.scrollTop = container.scrollHeight;
+        }, err => {
+          console.log("Aguardando sincronização de mensagens...");
         });
+    }
 
-        initAuth();
+    function renderMessage(msg) {
+      const container = document.getElementById("messagesList");
+      if (!container) return;
+      const isMe = msg.sender === currentUser;
+      
+      const div = document.createElement("div");
+      div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`;
+      
+      let contentHtml = msg.text ? `<p class="text-sm text-gray-100 break-words">${escapeHtml(msg.text)}</p>` : '';
+      if (msg.imageUrl) {
+        contentHtml += `<img src="${msg.imageUrl}" class="max-w-xs rounded-lg mt-1 border border-gray-700">`;
+      }
 
-        function checkURLParams() {
-            const params = new URLSearchParams(window.location.search);
-            const pinParam = params.get('pin');
-            if (pinParam) {
-                document.getElementById('inputPin').value = pinParam;
-            }
-        }
+      div.innerHTML = `
+        <div class="max-w-[75%] px-3 py-2 rounded-xl shadow ${isMe ? 'bg-[#005c4b] rounded-tr-none' : 'bg-[#202c33] rounded-tl-none'}">
+          <p class="text-xs font-bold mb-0.5 ${isMe ? 'text-indigo-300' : 'text-emerald-400'}">${escapeHtml(msg.sender)}</p>
+          ${contentHtml}
+          <div class="text-[10px] text-gray-400 text-right mt-1 flex items-center justify-end gap-1">
+            <span>${msg.time || ''}</span>
+            ${isMe ? '<i class="fa-solid fa-check-double text-sky-400"></i>' : ''}
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
 
-        window.handleJoinOrCreate = async function(e) {
-            e.preventDefault();
-            if (!currentUser) {
-                showToast("Aguarde a conexão com o servidor...", "warning");
-                return;
-            }
+    function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById("messageInput");
+      const text = input.value.trim();
+      if (!text) return;
 
-            username = document.getElementById('inputUsername').value.trim();
-            const pin = document.getElementById('inputPin').value.trim();
+      const msgData = {
+        sender: currentUser,
+        text: text,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
 
-            if (!username || !pin) {
-                showToast("Preencha seu apelido e a senha da sala", "warning");
-                return;
-            }
+      if (window.db) {
+        window.db.collection("messages").add(msgData);
+      } else {
+        renderMessage(msgData);
+      }
+      input.value = "";
+    }
 
-            const SECRET_PIN = "jtvrevendas";
-            if (pin !== SECRET_PIN) {
-                showToast("Senha incorreta! Acesso negado.", "error");
-                return;
-            }
-
-            currentRoomId = 'sala_' + pin.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-
-            try {
-                const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-                const roomSnap = await getDoc(roomDocRef);
-
-                if (!roomSnap.exists()) {
-                    await setDoc(roomDocRef, {
-                        createdAt: serverTimestamp(),
-                        createdBy: currentUser.uid,
-                        pin: pin
-                    });
-                }
-
-                enterChatUI();
-                listenForMessages();
-
-            } catch (err) {
-                console.error("Erro ao acessar sala:", err);
-                showToast("Erro ao conectar à sala. Tente novamente.", "error");
-            }
+    function sendImage(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const msgData = {
+          sender: currentUser,
+          imageUrl: evt.target.result,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
-
-        function enterChatUI() {
-            document.getElementById('joinScreen').classList.add('hidden');
-            document.getElementById('chatScreen').classList.remove('hidden');
-            document.getElementById('btnLeaveRoom').classList.remove('hidden');
-            document.getElementById('roomTitleDisplay').innerText = "Sala de Suporte";
+        if (window.db) {
+          window.db.collection("messages").add(msgData);
+        } else {
+          renderMessage(msgData);
         }
+      };
+      reader.readAsDataURL(file);
+    }
 
-        function listenForMessages() {
-            const messagesColRef = collection(db, 'artifacts', appId, 'public', 'data', `messages_${currentRoomId}`);
+    function leaveChat() {
+      location.reload();
+    }
 
-            unsubscribeMessages = onSnapshot(messagesColRef, (snapshot) => {
-                const messagesList = document.getElementById('messagesList');
-                const emptyNotice = document.getElementById('emptyChatNotice');
-
-                if (!messagesList) return;
-
-                if (snapshot.empty) {
-                    if (emptyNotice) emptyNotice.classList.remove('hidden');
-                    messagesList.innerHTML = '';
-                    return;
-                }
-
-                if (emptyNotice) emptyNotice.classList.add('hidden');
-
-                let docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                docs.sort((a, b) => {
-                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
-                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
-                    return timeA - timeB;
-                });
-
-                messagesList.innerHTML = '';
-                docs.forEach(msg => {
-                    appendMessageUI(msg);
-                });
-
-                messagesList.scrollTop = messagesList.scrollHeight;
-            });
-        }
-
-        function appendMessageUI(msg) {
-            const messagesList = document.getElementById('messagesList');
-            if (!messagesList) return;
-
-            const isMe = msg.userId === currentUser.uid;
-
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} my-1`;
-
-            const dateStr = msg.createdAt?.toDate 
-                ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : 'agora';
-
-            let contentHTML = '';
-
-            if (msg.imageUrl) {
-                contentHTML += `
-                    <div class="mb-1 overflow-hidden rounded-lg border border-black/10 max-w-xs sm:max-w-sm">
-                        <img src="${msg.imageUrl}" class="w-full h-auto object-cover max-h-72" alt="Imagem enviada" loading="lazy">
-                    </div>
-                `;
-            }
-
-            if (msg.text) {
-                contentHTML += `<p class="text-sm sm:text-base break-words leading-relaxed">${escapeHTML(msg.text)}</p>`;
-            }
-
-            const checksHTML = isMe ? `<i class="fa-solid fa-check-double text-[10px] text-[#53bdeb] ml-1"></i>` : '';
-
-            msgDiv.innerHTML = `
-                <div class="max-w-[85%] sm:max-w-md p-3 rounded-xl shadow-sm relative ${
-                    isMe 
-                        ? 'bg-[#005c4b] text-zinc-100 rounded-tr-none' 
-                        : 'bg-[#202c33] text-zinc-100 rounded-tl-none border border-[#2a3942]/60'
-                }">
-                    <div class="text-sm sm:text-base font-bold ${isMe ? 'text-[#25d366]' : 'text-[#53bdeb]'} mb-1">
-                        ${escapeHTML(msg.senderName || 'Anônimo')}
-                    </div>
-                    ${contentHTML}
-                    <div class="text-[10px] sm:text-xs text-[#8696a0] text-right mt-1 flex items-center justify-end">
-                        <span>${dateStr}</span>
-                        ${checksHTML}
-                    </div>
-                </div>
-            `;
-
-            messagesList.appendChild(msgDiv);
-        }
-
-        window.handleSendMessage = async function(e) {
-            e.preventDefault();
-
-            const textInput = document.getElementById('textInput');
-            const messageText = textInput.value.trim();
-
-            if (!messageText && !selectedBase64Image) {
-                return;
-            }
-
-            const btnSend = document.getElementById('btnSend');
-            btnSend.disabled = true;
-
-            try {
-                const messagesColRef = collection(db, 'artifacts', appId, 'public', 'data', `messages_${currentRoomId}`);
-
-                await addDoc(messagesColRef, {
-                    senderName: username,
-                    userId: currentUser.uid,
-                    text: messageText || null,
-                    imageUrl: selectedBase64Image || null,
-                    createdAt: serverTimestamp()
-                });
-
-                textInput.value = '';
-                cancelImageSelection();
-
-            } catch (err) {
-                console.error("Erro ao enviar mensagem:", err);
-                showToast("Erro ao enviar mensagem", "error");
-            } finally {
-                btnSend.disabled = false;
-            }
-        };
-
-        window.handleFileSelect = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!file.type.startsWith('image/')) {
-                showToast("Por favor escolha um arquivo de imagem válido", "warning");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-
-                    const MAX_WIDTH = 800;
-                    const MAX_HEIGHT = 800;
-
-                    if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                    } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
-                        }
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    selectedBase64Image = canvas.toDataURL('image/jpeg', 0.7);
-
-                    document.getElementById('imagePreview').src = selectedBase64Image;
-                    document.getElementById('imageFileName').innerText = file.name;
-                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.cancelImageSelection = function() {
-            selectedBase64Image = null;
-            document.getElementById('imageInput').value = '';
-            document.getElementById('imagePreviewContainer').classList.add('hidden');
-            document.getElementById('imagePreview').src = '';
-        };
-
-        window.leaveRoom = function() {
-            if (unsubscribeMessages) unsubscribeMessages();
-            currentRoomId = null;
-
-            document.getElementById('chatScreen').classList.add('hidden');
-            document.getElementById('joinScreen').classList.remove('hidden');
-            document.getElementById('btnLeaveRoom').classList.add('hidden');
-
-            document.getElementById('roomTitleDisplay').innerText = "Sala de Suporte";
-            document.getElementById('messagesList').innerHTML = '';
-        };
-
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-
-        function showToast(msg, type = "info") {
-            const toast = document.getElementById('toast');
-            const toastMsg = document.getElementById('toastMessage');
-            const toastIcon = document.getElementById('toastIcon');
-
-            if (!toast || !toastMsg || !toastIcon) return;
-
-            toastMsg.innerText = msg;
-
-            if (type === 'error') {
-                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400";
-            } else if (type === 'success') {
-                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
-            } else if (type === 'warning') {
-                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400";
-            } else {
-                toastIcon.className = "fa-solid fa-info-circle text-indigo-400";
-            }
-
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3500);
-        }
-    </script>
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
 </body>
 </html>
